@@ -10,66 +10,49 @@ servers:
   - url: <YOUR_NGROK_URL>
     description: Публичный сервер через ngrok
 
-tags:
-  - name: Recipes
-    description: Работа с рецептами (создание, просмотр, отправка)
-  - name: External API
-    description: Интеграция с Spoonacular API
-  - name: Meal Planner
-    description: Формирование плана питания
-  - name: Nutrition
-    description: Расчёт калорийности и БЖУ
-  - name: Shopping List
-    description: Генерация списка покупок
-
 paths:
   /:
     get:
+      tags:
+        - General
       summary: Главная страница
       description: Приветственная страница с ссылками на все эндпоинты
       responses:
         '200':
           description: HTML главной страницы
-          content:
-            text/html:
-              schema:
-                $ref: '#/components/schemas/HTMLResponse'
         '500':
           description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /recipes:
     get:
-      tags: [Recipes]
+      tags:
+        - Recipes
       summary: Получить список всех рецептов
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Поисковый запрос по названию рецепта
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Фильтр по типу блюда (например, "завтрак", "ужин")
       responses:
         '200':
-          description: Список рецептов
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Recipe'
+          description: Список рецептов найден
         '404':
           description: Рецепты не найдены
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /recipes/{recipe_id}:
     get:
-      tags: [Recipes]
+      tags:
+        - Recipes
       summary: Получить рецепт по ID
       parameters:
         - name: recipe_id
@@ -77,354 +60,245 @@ paths:
           required: true
           schema:
             type: integer
-          description: ID рецепта для поиска
+          description: Уникальный ID рецепта
       responses:
         '200':
           description: Рецепт найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Recipe'
         '404':
           description: Рецепт не найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка при запросе к базе данных
 
   /recipes/add:
     get:
-      tags: [Recipes]
-      summary: Форма для добавления нового рецепта
+      tags:
+        - Recipes
+      summary: Получить HTML-форму для добавления рецепта
       responses:
         '200':
-          description: HTML-форма добавления рецепта
-          content:
-            text/html:
-              schema:
-                $ref: '#/components/schemas/HTMLResponse'
+          description: HTML-форма для добавления нового рецепта
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка при загрузке формы
     post:
-      tags: [Recipes]
+      tags:
+        - Recipes
       summary: Добавить новый рецепт
+      parameters:
+        - name: recipe_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Уникальный ID рецепта
+        - name: recipe_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Название рецепта
+        - name: recipe_type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Категория блюда
+        - name: recipe_ingredients
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Список ингредиентов через запятую
+        - name: recipe_time
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Время приготовления
       requestBody:
         required: true
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Recipe'
+              type: object
+              properties:
+                recipe_id:
+                  type: integer
+                recipe_name:
+                  type: string
+                recipe_type:
+                  type: string
+                recipe_ingredients:
+                  type: string
+                recipe_time:
+                  type: string
+              required:
+                - recipe_id
+                - recipe_name
+                - recipe_ingredients
       responses:
-        '201':
+        '200':
           description: Рецепт успешно добавлен
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
         '400':
           description: Ошибка при добавлении рецепта
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка при сохранении в базу
 
   /recipes/share:
-    post:
-      tags: [Recipes]
-      summary: Отправить рецепт другу
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ShareRequest'
+    get:
+      tags:
+        - Sharing Service
+      summary: Отправить рецепт другому пользователю
+      parameters:
+        - name: recipe_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: ID рецепта для отправки
+        - name: recipient
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Email или идентификатор получателя
       responses:
         '200':
           description: Рецепт успешно отправлен
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: Ошибка в запросе (например, отсутствует email)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Не указан recipe_id или recipient
+        '404':
+          description: Рецепт не найден
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка сервера при отправке
 
   /recipes/external/random:
     get:
-      tags: [External API]
-      summary: Получить случайный рецепт из Spoonacular
+      tags:
+        - External Recipes
+      summary: Получить случайный рецепт из Spoonacular API
+      parameters:
+        - name: tags
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Тематические теги для фильтрации (например, "vegetarian,dessert")
       responses:
         '200':
           description: Случайный рецепт найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Recipe'
+        '400':
+          description: Некорректный запрос
         '404':
           description: Рецепт не найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Ошибка при запросе к Spoonacular
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка при обращении к Spoonacular API
 
   /meal-planner:
     get:
-      tags: [Meal Planner]
-      summary: План питания на день
+      tags:
+        - Meal Planner
+      summary: Получить план питания на день
+      parameters:
+        - name: calories
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Целевая калорийность
+        - name: diet
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Тип диеты (например, "vegan", "keto")
       responses:
         '200':
-          description: Сформированный план питания
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MealPlan'
+          description: План питания сгенерирован
+        '404':
+          description: Нет подходящих рецептов
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка при генерации плана
 
   /nutrition:
     get:
-      tags: [Nutrition]
-      summary: Форма для ввода ID рецептов для расчёта калорийности
+      tags:
+        - Nutrition
+      summary: Получить форму для расчёта калорийности
       responses:
         '200':
-          description: HTML-форма
-          content:
-            text/html:
-              schema:
-                $ref: '#/components/schemas/HTMLResponse'
+          description: HTML-форма для расчёта
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка сервера
     post:
-      tags: [Nutrition]
-      summary: Расчёт калорийности и БЖУ выбранных рецептов
+      tags:
+        - Nutrition
+      summary: Расчёт калорийности и БЖУ рецептов
+      parameters:
+        - name: recipe_ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Список ID рецептов через запятую, например "1,2,3"
       requestBody:
         required: true
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/NutritionRequest'
+              type: object
+              properties:
+                recipe_ids:
+                  type: string
+              required:
+                - recipe_ids
       responses:
         '200':
           description: Результаты расчёта калорийности
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NutritionResult'
+        '400':
+          description: Не указаны ID рецептов
         '404':
           description: Рецепты не найдены
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка при расчёте
 
   /shopping-list:
     get:
-      tags: [Shopping List]
-      summary: Форма для ввода ID рецептов для последующей генерации списка покупок
+      tags:
+        - Shopping List
+      summary: Получить форму для генерации списка покупок
       responses:
         '200':
           description: HTML-форма
-          content:
-            text/html:
-              schema:
-                $ref: '#/components/schemas/HTMLResponse'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Ошибка сервера
     post:
-      tags: [Shopping List]
-      summary: Сформировать список покупок
+      tags:
+        - Shopping List
+      summary: Сформировать список покупок по рецептам
+      parameters:
+        - name: recipe_ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Список ID рецептов через запятую, например "1,2,3"
       requestBody:
         required: true
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ShoppingListRequest'
+              type: object
+              properties:
+                recipe_ids:
+                  type: string
+              required:
+                - recipe_ids
       responses:
         '200':
-          description: Список покупок сформирован
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ShoppingList'
+          description: Список покупок успешно сформирован
         '400':
-          description: Ошибка в списке ID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Не указаны ID рецептов
         '404':
           description: Рецепты не найдены
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-components:
-  schemas:
-    Recipe:
-      type: object
-      required:
-        - recipe_id
-        - recipe_name
-        - recipe_ingredients
-      properties:
-        recipe_id:
-          type: integer
-          example: 1
-        recipe_name:
-          type: string
-          example: "Паста Карбонара"
-        recipe_type:
-          type: string
-          example: "Основное блюдо"
-        recipe_ingredients:
-          type: string
-          example: "спагетти, яйца, бекон, сыр пармезан"
-        recipe_time:
-          type: string
-          example: "25 минут"
-
-    ShoppingListRequest:
-      type: object
-      required:
-        - recipe_ids
-      properties:
-        recipe_ids:
-          type: string
-          example: "1,2,5"
-
-    ShoppingList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            type: string
-          example: ["спагетти", "яйца", "бекон", "сыр пармезан"]
-
-    NutritionRequest:
-      type: object
-      required:
-        - recipe_ids
-      properties:
-        recipe_ids:
-          type: string
-          example: "3,4,6"
-
-    NutritionResult:
-      type: object
-      properties:
-        total_calories:
-          type: number
-          example: 1540
-        proteins:
-          type: number
-          example: 85
-        fats:
-          type: number
-          example: 60
-        carbohydrates:
-          type: number
-          example: 130
-
-    MealPlan:
-      type: object
-      properties:
-        breakfast:
-          type: string
-          example: "Овсянка с фруктами"
-        lunch:
-          type: string
-          example: "Салат Цезарь"
-        dinner:
-          type: string
-          example: "Паста Болоньезе"
-
-    ShareRequest:
-      type: object
-      required:
-        - recipe_id
-        - email
-      properties:
-        recipe_id:
-          type: integer
-          example: 7
-        email:
-          type: string
-          example: "friend@example.com"
-
-    HTMLResponse:
-      type: object
-      properties:
-        content:
-          type: string
-          example: "<html><body><h1>Добро пожаловать в EasyCook!</h1></body></html>"
-
-    SuccessResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: "Операция выполнена успешно"
-
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          example: "Внутренняя ошибка сервера"
+          description: Ошибка при формировании списка
